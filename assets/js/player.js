@@ -86,5 +86,21 @@
     ctx.strokeText(countText, cx, countY);
     ctx.fillText(countText, cx, countY);
   };
+  Player.prototype.drawLabelsCentered = function(ctx, cx, cy){
+    var name = this.name || 'Unnamed Cell';
+    var countText = String(this.foodEaten || 0);
+    ctx.font = 'bold 14px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = 3;
+    var nameY = cy - 6;
+    ctx.strokeText(name, cx, nameY);
+    ctx.fillText(name, cx, nameY);
+    var countY = cy + 12;
+    ctx.strokeText(countText, cx, countY);
+    ctx.fillText(countText, cx, countY);
+  };
   window.Player = Player;
 })();

@@ -270,6 +270,9 @@
         viruses[vi].v.draw(ctx);
       }
 
+      // Draw player in world space so its visual radius matches collisions and zoom
+      player.draw(ctx);
+
       // Handle food collisions (eat and replace)
       for(var i=foods.length-1;i>=0;i--){
         var fx = foods[i].f.x;
@@ -297,9 +300,12 @@
         }
       }
 
-      // Draw player stationary at screen center in screen space via player module
+      // Reset transform for any HUD overlays (text/UI) if needed
       ctx.setTransform(1,0,0,1,0,0);
-      player.drawCentered(ctx, canvas.width/2, canvas.height/2);
+      // Draw player HUD labels (name and food count) at screen center
+      if(player && typeof player.drawLabelsCentered === 'function'){
+        player.drawLabelsCentered(ctx, canvas.width/2, canvas.height/2);
+      }
 
       requestAnimationFrame(loop);
     }
