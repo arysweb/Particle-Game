@@ -214,7 +214,8 @@
             name: player.name,
             x: player.x,
             y: player.y,
-            foodEaten: player.foodEaten
+            foodEaten: player.foodEaten,
+            radius: player.radius
           });
         }catch(e){}
       }
@@ -264,6 +265,13 @@
         var dist = Math.hypot(dx, dy);
         if(dist <= (player.radius + GAME_CONFIG.FOOD.RADIUS)){
           player.foodEaten += 1;
+          if(GAME_CONFIG.PLAYER && GAME_CONFIG.PLAYER.FOODS_PER_STEP && GAME_CONFIG.PLAYER.RADIUS_STEP_FRAC){
+            if((player.foodEaten % GAME_CONFIG.PLAYER.FOODS_PER_STEP) === 0){
+              var viewMin = Math.min(canvas.width, canvas.height);
+              var step = viewMin * GAME_CONFIG.PLAYER.RADIUS_STEP_FRAC;
+              player.increaseRadiusStep(step);
+            }
+          }
           replaceFood(i);
         }
       }

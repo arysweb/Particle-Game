@@ -16,11 +16,30 @@
     this.color = randomColor();
     this.name = 'Unnamed Cell';
     this.foodEaten = 0;
+    this.baseRadius = GAME_CONFIG.PLAYER.RADIUS;
+    this.targetRadius = this.baseRadius;
   }
   Player.prototype.setPosition = function(x,y){
     this.x = x;
     this.y = y;
     Logger.log("New player spawned in at " + this.x + ", " + this.y);
+  };
+  Player.prototype._recomputeSpeed = function(){
+    var exp = GAME_CONFIG.PLAYER.SPEED_EXP;
+    var scale = Math.pow(this.baseRadius / this.targetRadius, exp);
+    this.speed = GAME_CONFIG.PLAYER.BASE_SPEED * scale;
+  };
+  Player.prototype.setTargetRadius = function(r){
+    if(r > 0){
+      this.targetRadius = r;
+      this._recomputeSpeed();
+    }
+  };
+  Player.prototype.increaseRadiusStep = function(dr){
+    if(dr && dr > 0){
+      this.targetRadius += dr;
+      this._recomputeSpeed();
+    }
   };
   Player.prototype.update = function(dt, target){
     var dx = target.x - this.x;
@@ -37,6 +56,8 @@
       this.vx = 0;
       this.vy = 0;
     }
+    var rate = GAME_CONFIG.PLAYER.RADIUS_TWEEN_RATE;
+    this.radius += (this.targetRadius - this.radius) * rate * dt;
   };
   Player.prototype.draw = function(ctx){
     ctx.fillStyle = this.color;

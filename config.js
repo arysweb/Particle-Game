@@ -11,7 +11,12 @@ window.GAME_CONFIG = {
   PLAYER: {
     RADIUS: 32,
     BASE_SPEED: 450,
-    COLORS: ['#ff0000', '#00ff00', '#0000ff']
+    COLORS: ['#ff0000', '#00ff00', '#0000ff'],
+    MASS_PER_FOOD: 10,
+    SPEED_EXP: 0.5,
+    RADIUS_TWEEN_RATE: 10,
+    FOODS_PER_STEP: 30,
+    RADIUS_STEP_FRAC: 0.006
   },
   FOOD: {
     RADIUS: 16,
