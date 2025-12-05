@@ -214,13 +214,28 @@
       if(typeof data.color === 'string') op.color = data.color;
       if(typeof data.name === 'string') op.name = data.name;
       if(typeof data.foodEaten === 'number') op.foodEaten = data.foodEaten;
-      // Snapshot history for interpolation
+      // Snapshot history for interpolation (with velocity)
       if(!op._hist) op._hist = [];
       if(typeof data.x === 'number' && typeof data.y === 'number'){
         var t = (typeof data.updatedAt === 'number') ? data.updatedAt : Date.now();
         op._lastAt = t;
         var r = (typeof data.radius === 'number') ? data.radius : (op._hist.length ? op._hist[op._hist.length-1].r : (typeof op.radius === 'number' ? op.radius : GAME_CONFIG.PLAYER.RADIUS));
-        op._hist.push({ t: t, x: data.x, y: data.y, r: r });
+        // compute velocity from previous snapshot
+        var vx = 0, vy = 0;
+        if(op._hist.length){
+          var prev = op._hist[op._hist.length-1];
+          var dtMs = t - prev.t;
+          if(dtMs > 0){
+            var dtSec = dtMs / 1000;
+            vx = (data.x - prev.x) / dtSec;
+            vy = (data.y - prev.y) / dtSec;
+            // clamp absurd velocities to reduce spikes
+            var maxV = 2000; // px/s
+            if(vx > maxV) vx = maxV; else if(vx < -maxV) vx = -maxV;
+            if(vy > maxV) vy = maxV; else if(vy < -maxV) vy = -maxV;
+          }
+        }
+        op._hist.push({ t: t, x: data.x, y: data.y, r: r, vx: vx, vy: vy });
         if(op._hist.length > 60) op._hist.shift();
         // Initialize pose on first packet
         if(typeof op.x !== 'number') op.x = data.x;
@@ -346,9 +361,9 @@
         ctx.restore();
       }
 
-      // Smooth remote players using buffered snapshot interpolation (~180ms buffer) and prune stale (>3s)
+      // Smooth remote players using velocity-based buffered interpolation (~200ms) and prune stale (>3s)
       var nowMs = Date.now();
-      var renderTime = nowMs - 180;
+      var renderTime = nowMs - 200;
       for(var sid in otherPlayers){ if(Object.prototype.hasOwnProperty.call(otherPlayers, sid)){
         var rp = otherPlayers[sid];
         // Prune ghost players that stopped updating
@@ -362,12 +377,28 @@
             if(hist[i].t >= renderTime){ b = hist[i]; break; }
           }
           var t0 = a.t, t1 = b.t;
-          var x0 = a.x, y0 = a.y, r0 = a.r;
-          var x1 = b.x, y1 = b.y, r1 = b.r;
-          var u = (t1 !== t0) ? ((renderTime - t0) / (t1 - t0)) : 1;
-          if(u < 0) u = 0; if(u > 1) u = 1;
-          rp.x = x0 + (x1 - x0) * u;
-          rp.y = y0 + (y1 - y0) * u;
+          var x0 = a.x, y0 = a.y, r0 = a.r, v0x = a.vx||0, v0y = a.vy||0;
+          var x1 = b.x, y1 = b.y, r1 = b.r, v1x = b.vx||0, v1y = b.vy||0;
+          if(renderTime <= t1 && t1 !== t0){
+            // Cubic Hermite interpolation using velocities
+            var u = (renderTime - t0) / (t1 - t0); if(u < 0) u = 0; if(u > 1) u = 1;
+            var dtMs = (t1 - t0); var dtSec = dtMs / 1000;
+            var m0x = v0x * dtSec, m0y = v0y * dtSec;
+            var m1x = v1x * dtSec, m1y = v1y * dtSec;
+            var u2 = u*u, u3 = u2*u;
+            var h00 = 2*u3 - 3*u2 + 1;
+            var h10 = u3 - 2*u2 + u;
+            var h01 = -2*u3 + 3*u2;
+            var h11 = u3 - u2;
+            rp.x = h00*x0 + h10*m0x + h01*x1 + h11*m1x;
+            rp.y = h00*y0 + h10*m0y + h01*y1 + h11*m1y;
+          } else {
+            // Short extrapolation (up to 120ms) beyond last snapshot
+            var overMs = Math.min(120, renderTime - t1);
+            var overSec = Math.max(0, overMs/1000);
+            rp.x = x1 + v1x * overSec;
+            rp.y = y1 + v1y * overSec;
+          }
           rp.radius += (r1 - rp.radius) * Math.min(1, 12 * dt);
           // Trim very old snapshots
           while(hist.length && hist[0].t < (Date.now() - 1000)) hist.shift();
