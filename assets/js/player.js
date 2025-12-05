@@ -68,7 +68,8 @@
   };
   Player.prototype._recomputeSpeed = function(){
     var exp = GAME_CONFIG.PLAYER.SPEED_EXP;
-    var scale = Math.pow(this.baseRadius / this.targetRadius, exp);
+    var currentR = (typeof this.radius === 'number' && isFinite(this.radius) && this.radius > 0) ? this.radius : this.baseRadius;
+    var scale = Math.pow(this.baseRadius / currentR, exp);
     this.speed = GAME_CONFIG.PLAYER.BASE_SPEED * scale;
   };
   Player.prototype.setTargetRadius = function(r){
@@ -103,6 +104,8 @@
     this.radius += (this.targetRadius - this.radius) * rate * dt;
     if(!(typeof this.radius === 'number' && isFinite(this.radius))) this.radius = 1;
     if(this.radius < 1) this.radius = 1;
+    // Recompute speed based on current (visual) radius so slowdown is gradual
+    this._recomputeSpeed();
   };
   Player.prototype.draw = function(ctx){
     // Fill body
