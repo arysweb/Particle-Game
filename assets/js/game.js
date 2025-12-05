@@ -166,8 +166,9 @@
         var playerRef = window.firebaseRef(window.firebaseDb, 'players/' + playerId);
         window.currentPlayerRef = playerRef;
         window.firebaseSet(playerRef, data).catch(function(){});
-        // Intentionally not using onDisconnect().remove() to avoid multi-tab removal issues.
-        // Start background sync (20 Hz) so others see me even when this tab is throttled
+        // Ensure cleanup even on refresh/crash
+        try{ if(window.firebaseOnDisconnect){ window.firebaseOnDisconnect(playerRef).remove(); } }catch(e){}
+        // Start background sync (50 Hz) so others see me even when this tab is throttled
         try{
           if(!window.__playerSyncTimer){
             window.__playerSyncTimer = setInterval(function(){
@@ -185,7 +186,7 @@
                   updatedAt: Date.now()
                 });
               }catch(e){}
-            }, 50);
+            }, 20);
           }
         }catch(e){}
 
@@ -217,6 +218,7 @@
       if(!op._hist) op._hist = [];
       if(typeof data.x === 'number' && typeof data.y === 'number'){
         var t = (typeof data.updatedAt === 'number') ? data.updatedAt : Date.now();
+        op._lastAt = t;
         var r = (typeof data.radius === 'number') ? data.radius : (op._hist.length ? op._hist[op._hist.length-1].r : (typeof op.radius === 'number' ? op.radius : GAME_CONFIG.PLAYER.RADIUS));
         op._hist.push({ t: t, x: data.x, y: data.y, r: r });
         if(op._hist.length > 60) op._hist.shift();
@@ -293,8 +295,8 @@
       var camX = player.x - (canvas.width/2) / (zoom || 1);
       var camY = player.y - (canvas.height/2) / (zoom || 1);
 
-      // Periodically sync via rAF only when tab is visible; background sync interval handles hidden tabs
-      if(document.visibilityState === 'visible' && syncAccum >= 0.05 && window.currentPlayerId && window.firebaseDb){
+      // Periodically sync via rAF only when tab is visible; background sync interval handles hidden tabs (50 Hz)
+      if(document.visibilityState === 'visible' && syncAccum >= 0.02 && window.currentPlayerId && window.firebaseDb){
         syncAccum = 0;
         try{
           var path = 'players/' + window.currentPlayerId;
@@ -344,10 +346,13 @@
         ctx.restore();
       }
 
-      // Smooth remote players using buffered snapshot interpolation (~120ms buffer)
-      var renderTime = Date.now() - 120;
+      // Smooth remote players using buffered snapshot interpolation (~180ms buffer) and prune stale (>3s)
+      var nowMs = Date.now();
+      var renderTime = nowMs - 180;
       for(var sid in otherPlayers){ if(Object.prototype.hasOwnProperty.call(otherPlayers, sid)){
         var rp = otherPlayers[sid];
+        // Prune ghost players that stopped updating
+        if(rp && typeof rp._lastAt === 'number' && (nowMs - rp._lastAt) > 3000){ delete otherPlayers[sid]; continue; }
         if(rp && rp._hist && rp._hist.length){
           // Find bracketing snapshots
           var hist = rp._hist;
