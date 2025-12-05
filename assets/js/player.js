@@ -1,4 +1,10 @@
 (function(){
+  function randomColor(){
+    var palette = (window.GAME_CONFIG && GAME_CONFIG.PLAYER && Array.isArray(GAME_CONFIG.PLAYER.COLORS))
+      ? GAME_CONFIG.PLAYER.COLORS
+      : ['#ff0000','#00ff00','#0000ff'];
+    return palette[Math.floor(Math.random()*palette.length)];
+  }
   function Player(){
     if(!window.GAME_CONFIG || !GAME_CONFIG.PLAYER) throw new Error("Missing GAME_CONFIG.PLAYER");
     this.radius = GAME_CONFIG.PLAYER.RADIUS;
@@ -7,6 +13,7 @@
     this.y = 0;
     this.vx = 0;
     this.vy = 0;
+    this.color = randomColor();
   }
   Player.prototype.setPosition = function(x,y){
     this.x = x;
@@ -30,6 +37,7 @@
     }
   };
   Player.prototype.draw = function(ctx){
+    ctx.fillStyle = this.color;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
     ctx.fill();
