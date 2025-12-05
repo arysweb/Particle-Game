@@ -16,7 +16,7 @@ window.GAME_CONFIG = {
     FOODS_PER_ZOOM_STEP: 20
   },
   PLAYER: {
-    RADIUS: 36,
+    RADIUS: 34,
     BASE_SPEED: 300,
     COLORS: ['#ff0000', '#00ff00', '#0000ff'],
     MASS_PER_FOOD: 10,
@@ -26,7 +26,7 @@ window.GAME_CONFIG = {
     RADIUS_STEP_FRAC: 0.009
   },
   FOOD: {
-    RADIUS: 12,
+    RADIUS: 14,
     INITIAL_COUNT: 500,
     MIN_DISTANCE_FROM_PLAYER: 50,
     COLORS: ['#ff0000', '#00ff00', '#0000ff']
