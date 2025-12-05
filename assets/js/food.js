@@ -19,10 +19,21 @@
     Logger.log("New food cell spawned in at " + this.x + ", " + this.y);
   };
   Food.prototype.draw = function(ctx){
+    var z = (window.currentZoom && typeof window.currentZoom === 'number') ? window.currentZoom : 1;
     ctx.fillStyle = this.color;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
-    ctx.fill();
+    if(z !== 1){
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.scale(1/z, 1/z);
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+      ctx.fill();
+    }
   };
   window.Food = Food;
 })();

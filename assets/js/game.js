@@ -184,14 +184,18 @@
 
     var last = performance.now();
     var syncAccum = 0;
+    // Camera zoom state
+    var zoom = (GAME_CONFIG.CAMERA && GAME_CONFIG.CAMERA.INITIAL_ZOOM) ? GAME_CONFIG.CAMERA.INITIAL_ZOOM : 1;
+    var targetZoom = zoom;
+    window.currentZoom = zoom;
     function loop(now){
       var dt = (now - last) / 1000;
       last = now;
       syncAccum += dt;
 
-      // Update mouse world position every frame so movement persists
-      mouse.x = mouseScreenX + (player.x - canvas.width/2);
-      mouse.y = mouseScreenY + (player.y - canvas.height/2);
+      // Update mouse world position every frame so movement persists (zoom-aware)
+      mouse.x = player.x + (mouseScreenX - canvas.width/2) / (zoom || 1);
+      mouse.y = player.y + (mouseScreenY - canvas.height/2) / (zoom || 1);
       player.update(dt, mouse);
       var half = player.radius * 0.5;
       if(player.x < half) player.x = half;
@@ -202,8 +206,15 @@
       ctx.setTransform(1,0,0,1,0,0);
       ctx.clearRect(0,0,canvas.width,canvas.height);
 
-      var camX = Math.round(player.x - canvas.width/2);
-      var camY = Math.round(player.y - canvas.height/2);
+      // Zoom tween
+      if(GAME_CONFIG.CAMERA){
+        var zr = GAME_CONFIG.CAMERA.ZOOM_TWEEN_RATE || 8;
+        zoom += (targetZoom - zoom) * zr * dt;
+        window.currentZoom = zoom;
+      }
+
+      var camX = player.x - (canvas.width/2) / (zoom || 1);
+      var camY = player.y - (canvas.height/2) / (zoom || 1);
 
       // Periodically sync to Realtime Database (minimal fields)
       if(syncAccum >= 0.2 && window.currentPlayerId && window.firebaseDb){
@@ -220,34 +231,37 @@
         }catch(e){}
       }
 
-      // Draw infinite grid in screen space using camera offset
+      // Apply zoom and translate world so player stays centered
+      ctx.setTransform(zoom,0,0,zoom,0,0);
+      ctx.translate(-camX, -camY);
+
+      // Draw grid in world space (infinite across the visible area)
       if(GAME_CONFIG.GRID){
         var cell = GAME_CONFIG.GRID.CELL_SIZE;
         var color = GAME_CONFIG.GRID.LINE_COLOR;
         var alpha = GAME_CONFIG.GRID.LINE_ALPHA;
-        var offsetX = - (camX % cell);
-        var offsetY = - (camY % cell);
+        var viewW = canvas.width / (zoom || 1);
+        var viewH = canvas.height / (zoom || 1);
+        var startX = Math.floor(camX / cell) * cell;
+        var endX = camX + viewW;
+        var startY = Math.floor(camY / cell) * cell;
+        var endY = camY + viewH;
         ctx.save();
         ctx.beginPath();
         ctx.strokeStyle = color;
         ctx.globalAlpha = alpha;
-        ctx.lineWidth = 1;
-        // vertical lines
-        for(var x = offsetX; x <= canvas.width; x += cell){
-          ctx.moveTo(x, 0);
-          ctx.lineTo(x, canvas.height);
+        ctx.lineWidth = 1 / (zoom || 1);
+        for(var gx = startX; gx <= endX; gx += cell){
+          ctx.moveTo(gx, startY);
+          ctx.lineTo(gx, endY);
         }
-        // horizontal lines
-        for(var y = offsetY; y <= canvas.height; y += cell){
-          ctx.moveTo(0, y);
-          ctx.lineTo(canvas.width, y);
+        for(var gy = startY; gy <= endY; gy += cell){
+          ctx.moveTo(startX, gy);
+          ctx.lineTo(endX, gy);
         }
         ctx.stroke();
         ctx.restore();
       }
-
-      // Move the world relative to player (player stays centered)
-      ctx.translate(-camX, -camY);
 
       // Draw world entities: foods (bottom), viruses (middle)
       drawFoods(ctx);
@@ -270,6 +284,13 @@
               var viewMin = Math.min(canvas.width, canvas.height);
               var step = viewMin * GAME_CONFIG.PLAYER.RADIUS_STEP_FRAC;
               player.increaseRadiusStep(step);
+            }
+          }
+          if(GAME_CONFIG.CAMERA && GAME_CONFIG.CAMERA.FOODS_PER_ZOOM_STEP && GAME_CONFIG.CAMERA.ZOOM_STEP){
+            if((player.foodEaten % GAME_CONFIG.CAMERA.FOODS_PER_ZOOM_STEP) === 0){
+              var minZoom = GAME_CONFIG.CAMERA.MIN_ZOOM || 0.5;
+              var nextZoom = (targetZoom || zoom) - GAME_CONFIG.CAMERA.ZOOM_STEP;
+              targetZoom = nextZoom < minZoom ? minZoom : nextZoom;
             }
           }
           replaceFood(i);

@@ -8,9 +8,16 @@ window.GAME_CONFIG = {
     LINE_COLOR: '#c0c0c0',
     LINE_ALPHA: 0.25
   },
+  CAMERA: {
+    INITIAL_ZOOM: 1.4,
+    MIN_ZOOM: 0.9,
+    ZOOM_STEP: 0.02,
+    ZOOM_TWEEN_RATE: 8,
+    FOODS_PER_ZOOM_STEP: 60
+  },
   PLAYER: {
     RADIUS: 32,
-    BASE_SPEED: 450,
+    BASE_SPEED: 300,
     COLORS: ['#ff0000', '#00ff00', '#0000ff'],
     MASS_PER_FOOD: 10,
     SPEED_EXP: 0.5,
