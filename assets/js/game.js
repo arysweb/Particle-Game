@@ -165,10 +165,7 @@
         var playerRef = window.firebaseRef(window.firebaseDb, 'players/' + playerId);
         window.currentPlayerRef = playerRef;
         window.firebaseSet(playerRef, data).catch(function(){});
-        try{
-          // Remove this player when the connection is lost
-          window.firebaseOnDisconnect(playerRef).remove();
-        }catch(e){}
+        // Intentionally not using onDisconnect().remove() to avoid multi-tab removal issues.
         // Best-effort immediate cleanup on page unload
         var doCleanup = function(){
           if(window.__playerRemoved) return;
@@ -178,9 +175,6 @@
         window.addEventListener('beforeunload', doCleanup);
         window.addEventListener('unload', doCleanup);
         window.addEventListener('pagehide', doCleanup);
-        document.addEventListener('visibilitychange', function(){
-          if(document.visibilityState === 'hidden') doCleanup();
-        });
       }
     })();
 
