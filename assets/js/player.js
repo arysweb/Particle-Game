@@ -14,6 +14,8 @@
     this.vx = 0;
     this.vy = 0;
     this.color = randomColor();
+    this.name = 'Unnamed Cell';
+    this.foodEaten = 0;
   }
   Player.prototype.setPosition = function(x,y){
     this.x = x;

@@ -30,14 +30,24 @@
         var playerId = 'p_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
         window.currentPlayerId = playerId;
         var data = {
-          name: 'Player',
+          name: player.name,
           x: player.x,
           y: player.y,
           color: player.color,
           radius: player.radius,
+          foodEaten: player.foodEaten,
           createdAt: Date.now()
         };
-        window.firebaseSet(window.firebaseRef(window.firebaseDb, 'players/' + playerId), data).catch(function(){});
+        var playerRef = window.firebaseRef(window.firebaseDb, 'players/' + playerId);
+        window.firebaseSet(playerRef, data).catch(function(){});
+        try{
+          // Remove this player when the connection is lost
+          window.firebaseOnDisconnect(playerRef).remove();
+        }catch(e){}
+        // Best-effort immediate cleanup on page unload
+        window.addEventListener('beforeunload', function(){
+          try{ window.firebaseRemove(playerRef); }catch(e){}
+        });
       }
     })();
 
@@ -51,9 +61,11 @@
     });
 
     var last = performance.now();
+    var syncAccum = 0;
     function loop(now){
       var dt = (now - last) / 1000;
       last = now;
+      syncAccum += dt;
 
       // Update mouse world position every frame so movement persists
       mouse.x = mouseScreenX + (player.x - canvas.width/2);
@@ -70,6 +82,20 @@
 
       var camX = Math.round(player.x - canvas.width/2);
       var camY = Math.round(player.y - canvas.height/2);
+
+      // Periodically sync to Realtime Database (minimal fields)
+      if(syncAccum >= 0.2 && window.currentPlayerId && window.firebaseDb){
+        syncAccum = 0;
+        try{
+          var path = 'players/' + window.currentPlayerId;
+          window.firebaseUpdate(window.firebaseRef(window.firebaseDb, path), {
+            name: player.name,
+            x: player.x,
+            y: player.y,
+            foodEaten: player.foodEaten
+          });
+        }catch(e){}
+      }
 
       // Draw infinite grid in screen space using camera offset
       if(GAME_CONFIG.GRID){
@@ -108,6 +134,25 @@
       ctx.beginPath();
       ctx.arc(canvas.width/2, canvas.height/2, player.radius, 0, Math.PI*2);
       ctx.fill();
+
+      // Draw player name and food eaten count centered
+      var cx = canvas.width/2;
+      var cy = canvas.height/2;
+      ctx.font = 'bold 14px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+      ctx.lineWidth = 3;
+      // name line
+      var nameY = cy - 6;
+      ctx.strokeText(player.name, cx, nameY);
+      ctx.fillText(player.name, cx, nameY);
+      // food eaten line
+      var countText = String(player.foodEaten || 0);
+      var countY = cy + 12;
+      ctx.strokeText(countText, cx, countY);
+      ctx.fillText(countText, cx, countY);
 
       requestAnimationFrame(loop);
     }
