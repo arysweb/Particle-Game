@@ -11,24 +11,43 @@
     var ctx = canvas.getContext('2d');
     container.appendChild(canvas);
 
-    function resize(){
-      canvas.width = container.clientWidth;
-      canvas.height = container.clientHeight;
-      Logger.log("Canvas resized to " + canvas.width + "x" + canvas.height);
-    }
-    window.addEventListener('resize', resize);
-    resize();
+    // Set canvas size once (no dynamic resizing)
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
 
     var player = new Player();
     var worldSize = GAME_CONFIG.WORLD_SIZE;
-    player.setPosition(worldSize/2, worldSize/2);
+    var spawnMin = player.radius;
+    var spawnMax = worldSize - player.radius;
+    var spawnX = spawnMin + Math.random() * (spawnMax - spawnMin);
+    var spawnY = spawnMin + Math.random() * (spawnMax - spawnMin);
+    player.setPosition(spawnX, spawnY);
     Logger.log("Game initialized with world_size=" + worldSize);
 
-    var mouse = { x: worldSize/2, y: worldSize/2 };
+    // Persist player to Realtime Database
+    (function(){
+      if(window.firebaseDb && window.firebaseRef && window.firebaseSet){
+        var playerId = 'p_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        window.currentPlayerId = playerId;
+        var data = {
+          name: 'Player',
+          x: player.x,
+          y: player.y,
+          color: player.color,
+          radius: player.radius,
+          createdAt: Date.now()
+        };
+        window.firebaseSet(window.firebaseRef(window.firebaseDb, 'players/' + playerId), data).catch(function(){});
+      }
+    })();
+
+    var mouse = { x: spawnX, y: spawnY };
+    var mouseScreenX = canvas.width/2;
+    var mouseScreenY = canvas.height/2;
     canvas.addEventListener('mousemove', function(e){
       var rect = canvas.getBoundingClientRect();
-      mouse.x = (e.clientX - rect.left) + (player.x - canvas.width/2);
-      mouse.y = (e.clientY - rect.top) + (player.y - canvas.height/2);
+      mouseScreenX = (e.clientX - rect.left);
+      mouseScreenY = (e.clientY - rect.top);
     });
 
     var last = performance.now();
@@ -36,7 +55,15 @@
       var dt = (now - last) / 1000;
       last = now;
 
+      // Update mouse world position every frame so movement persists
+      mouse.x = mouseScreenX + (player.x - canvas.width/2);
+      mouse.y = mouseScreenY + (player.y - canvas.height/2);
       player.update(dt, mouse);
+      var half = player.radius * 0.5;
+      if(player.x < half) player.x = half;
+      else if(player.x > GAME_CONFIG.WORLD_SIZE - half) player.x = GAME_CONFIG.WORLD_SIZE - half;
+      if(player.y < half) player.y = half;
+      else if(player.y > GAME_CONFIG.WORLD_SIZE - half) player.y = GAME_CONFIG.WORLD_SIZE - half;
 
       ctx.setTransform(1,0,0,1,0,0);
       ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -70,9 +97,17 @@
         ctx.restore();
       }
 
+      // Move the world relative to player (player stays centered)
       ctx.translate(-camX, -camY);
 
-      player.draw(ctx);
+      // TODO: draw world entities here (food, viruses, etc.) at world positions
+
+      // Draw player stationary at screen center in screen space
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.fillStyle = player.color;
+      ctx.beginPath();
+      ctx.arc(canvas.width/2, canvas.height/2, player.radius, 0, Math.PI*2);
+      ctx.fill();
 
       requestAnimationFrame(loop);
     }

@@ -1,4 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAzNX_u-lRxcFXk5Y6LRWCVsn8iCl2iukk",
@@ -11,3 +12,10 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// Expose to window so non-module scripts (game.js) can access
+window.firebaseApp = app;
+window.firebaseDb = db;
+window.firebaseRef = ref;
+window.firebaseSet = set;
