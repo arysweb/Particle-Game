@@ -4,12 +4,12 @@
 window.GAME_CONFIG = {
   WORLD_SIZE: 4000,
   GRID: {
-    CELL_SIZE: 50,
+    CELL_SIZE: 30,
     LINE_COLOR: '#c0c0c0',
     LINE_ALPHA: 0.25
   },
   CAMERA: {
-    INITIAL_ZOOM: 1.4,
+    INITIAL_ZOOM: 1.6,
     MIN_ZOOM: 0.9,
     ZOOM_STEP: 0.02,
     ZOOM_TWEEN_RATE: 8,
@@ -26,7 +26,7 @@ window.GAME_CONFIG = {
     RADIUS_STEP_FRAC: 0.006
   },
   FOOD: {
-    RADIUS: 16,
+    RADIUS: 15,
     INITIAL_COUNT: 500,
     MIN_DISTANCE_FROM_PLAYER: 50,
     COLORS: ['#ff0000', '#00ff00', '#0000ff']
