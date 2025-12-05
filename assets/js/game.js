@@ -161,14 +161,23 @@
           createdAt: Date.now()
         };
         var playerRef = window.firebaseRef(window.firebaseDb, 'players/' + playerId);
+        window.currentPlayerRef = playerRef;
         window.firebaseSet(playerRef, data).catch(function(){});
         try{
           // Remove this player when the connection is lost
           window.firebaseOnDisconnect(playerRef).remove();
         }catch(e){}
         // Best-effort immediate cleanup on page unload
-        window.addEventListener('beforeunload', function(){
+        var doCleanup = function(){
+          if(window.__playerRemoved) return;
+          window.__playerRemoved = true;
           try{ window.firebaseRemove(playerRef); }catch(e){}
+        };
+        window.addEventListener('beforeunload', doCleanup);
+        window.addEventListener('unload', doCleanup);
+        window.addEventListener('pagehide', doCleanup);
+        document.addEventListener('visibilitychange', function(){
+          if(document.visibilityState === 'hidden') doCleanup();
         });
       }
     })();
