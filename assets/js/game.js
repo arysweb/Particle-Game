@@ -166,15 +166,36 @@
         window.currentPlayerRef = playerRef;
         window.firebaseSet(playerRef, data).catch(function(){});
         // Intentionally not using onDisconnect().remove() to avoid multi-tab removal issues.
+        // Start background sync (10 Hz) so others see me even when this tab is throttled
+        try{
+          if(!window.__playerSyncTimer){
+            window.__playerSyncTimer = setInterval(function(){
+              if(!window.currentPlayerId || !window.firebaseDb) return;
+              try{
+                var path = 'players/' + window.currentPlayerId;
+                window.firebaseUpdate(window.firebaseRef(window.firebaseDb, path), {
+                  name: player.name,
+                  x: player.x,
+                  y: player.y,
+                  color: player.color,
+                  foodEaten: player.foodEaten,
+                  radius: player.radius,
+                  createdAt: (typeof window.currentPlayerCreatedAt === 'number' ? window.currentPlayerCreatedAt : undefined)
+                });
+              }catch(e){}
+            }, 100);
+          }
+        }catch(e){}
+
         // Best-effort immediate cleanup on page unload
         var doCleanup = function(){
           if(window.__playerRemoved) return;
           window.__playerRemoved = true;
           try{ window.firebaseRemove(playerRef); }catch(e){}
+          try{ if(window.__playerSyncTimer){ clearInterval(window.__playerSyncTimer); window.__playerSyncTimer = null; } }catch(e){}
         };
         window.addEventListener('beforeunload', doCleanup);
         window.addEventListener('unload', doCleanup);
-        window.addEventListener('pagehide', doCleanup);
       }
     })();
 
@@ -187,10 +208,18 @@
         op = new Player();
         otherPlayers[id] = op;
       }
-      if(typeof data.x === 'number') op.x = data.x;
-      if(typeof data.y === 'number') op.y = data.y;
+      // Set immediate position on first receive; afterwards, update targets for smoothing
+      if(typeof data.x === 'number'){
+        if(typeof op.x !== 'number') op.x = data.x;
+        op._tx = data.x;
+      }
+      if(typeof data.y === 'number'){
+        if(typeof op.y !== 'number') op.y = data.y;
+        op._ty = data.y;
+      }
       if(typeof data.radius === 'number'){
-        op.radius = data.radius;
+        if(typeof op.radius !== 'number') op.radius = data.radius;
+        op._tr = data.radius;
         op.targetRadius = data.radius;
       }
       if(typeof data.color === 'string') op.color = data.color;
@@ -264,8 +293,8 @@
       var camX = player.x - (canvas.width/2) / (zoom || 1);
       var camY = player.y - (canvas.height/2) / (zoom || 1);
 
-      // Periodically sync to Realtime Database (full fields to avoid missing columns)
-      if(syncAccum >= 0.2 && window.currentPlayerId && window.firebaseDb){
+      // Periodically sync via rAF only when tab is visible; background sync interval handles hidden tabs
+      if(document.visibilityState === 'visible' && syncAccum >= 0.1 && window.currentPlayerId && window.firebaseDb){
         syncAccum = 0;
         try{
           var path = 'players/' + window.currentPlayerId;
@@ -313,6 +342,18 @@
         ctx.stroke();
         ctx.restore();
       }
+
+      // Smooth remote players toward targets (snap if far to avoid rubber-banding)
+      for(var sid in otherPlayers){ if(Object.prototype.hasOwnProperty.call(otherPlayers, sid)){
+        var rp = otherPlayers[sid];
+        var lerp = Math.min(1, (14 * dt));
+        if(typeof rp._tx === 'number'){
+          var dx = rp._tx - rp.x; var dy = rp._ty - rp.y; var dist = Math.hypot(dx, dy);
+          if(dist > 180){ rp.x = rp._tx; rp.y = rp._ty; }
+          else { rp.x += dx * lerp; rp.y += dy * lerp; }
+        }
+        if(typeof rp._tr === 'number') rp.radius += (rp._tr - rp.radius) * lerp;
+      }}
 
       // Draw world entities: foods (bottom), viruses (middle)
       drawFoods(ctx);
