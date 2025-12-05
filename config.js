@@ -10,10 +10,10 @@ window.GAME_CONFIG = {
   },
   CAMERA: {
     INITIAL_ZOOM: 1.6,
-    MIN_ZOOM: 0.9,
-    ZOOM_STEP: 0.02,
-    ZOOM_TWEEN_RATE: 8,
-    FOODS_PER_ZOOM_STEP: 60
+    MIN_ZOOM: 0.7,
+    ZOOM_STEP: 0.06,
+    ZOOM_TWEEN_RATE: 12,
+    FOODS_PER_ZOOM_STEP: 20
   },
   PLAYER: {
     RADIUS: 32,
