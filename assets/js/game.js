@@ -173,6 +173,49 @@
       }
     })();
 
+    // --- Other players (multiplayer via RTDB) ---
+    var otherPlayers = {};
+    function upsertOtherPlayer(id, data){
+      if(id === window.currentPlayerId) return;
+      var op = otherPlayers[id];
+      if(!op){
+        op = new Player();
+        otherPlayers[id] = op;
+      }
+      if(typeof data.x === 'number') op.x = data.x;
+      if(typeof data.y === 'number') op.y = data.y;
+      if(typeof data.radius === 'number'){
+        op.radius = data.radius;
+        op.targetRadius = data.radius;
+      }
+      if(typeof data.color === 'string') op.color = data.color;
+      if(typeof data.name === 'string') op.name = data.name;
+      if(typeof data.foodEaten === 'number') op.foodEaten = data.foodEaten;
+    }
+    function removeOtherPlayer(id){
+      if(otherPlayers[id]) delete otherPlayers[id];
+    }
+    (function(){
+      if(window.firebaseDb && window.firebaseRef && window.firebaseOnChildAdded){
+        var playersRef = window.firebaseRef(window.firebaseDb, 'players');
+        window.firebaseOnChildAdded(playersRef, function(snap){
+          var data = snap.val() || {};
+          upsertOtherPlayer(snap.key, data);
+        });
+        if(window.firebaseOnChildChanged){
+          window.firebaseOnChildChanged(playersRef, function(snap){
+            var data = snap.val() || {};
+            upsertOtherPlayer(snap.key, data);
+          });
+        }
+        if(window.firebaseOnChildRemoved){
+          window.firebaseOnChildRemoved(playersRef, function(snap){
+            removeOtherPlayer(snap.key);
+          });
+        }
+      }
+    })();
+
     var mouse = { x: spawnX, y: spawnY };
     var mouseScreenX = canvas.width/2;
     var mouseScreenY = canvas.height/2;
@@ -265,6 +308,10 @@
 
       // Draw world entities: foods (bottom), viruses (middle)
       drawFoods(ctx);
+      // Draw other players (world space)
+      for(var oid in otherPlayers){ if(Object.prototype.hasOwnProperty.call(otherPlayers, oid)){
+        otherPlayers[oid].draw(ctx);
+      }}
       for(var vi=0; vi<viruses.length; vi++){
         viruses[vi].v.update(dt);
         viruses[vi].v.draw(ctx);
