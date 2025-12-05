@@ -13,6 +13,7 @@
   function resize(){
     canvas.width = container.clientWidth;
     canvas.height = container.clientHeight;
+    Logger.log("Canvas resized to " + canvas.width + "x" + canvas.height);
   }
   window.addEventListener('resize', resize);
   resize();
@@ -20,6 +21,7 @@
   var player = new Player();
   var worldSize = GAME_CONFIG.WORLD_SIZE;
   player.setPosition(worldSize/2, worldSize/2);
+  Logger.log("Game initialized with world_size=" + worldSize);
 
   var mouse = { x: worldSize/2, y: worldSize/2 };
   canvas.addEventListener('mousemove', function(e){

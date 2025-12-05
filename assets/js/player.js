@@ -11,6 +11,7 @@
   Player.prototype.setPosition = function(x,y){
     this.x = x;
     this.y = y;
+    Logger.log("New player spawned in at " + this.x + ", " + this.y);
   };
   Player.prototype.update = function(dt, target){
     var dx = target.x - this.x;

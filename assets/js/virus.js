@@ -9,6 +9,7 @@
   Virus.prototype.setPosition = function(x,y){
     this.x = x;
     this.y = y;
+    Logger.log("New virus spawned in at " + this.x + ", " + this.y);
   };
   Virus.prototype.draw = function(ctx){
     ctx.beginPath();

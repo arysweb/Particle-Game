@@ -9,6 +9,7 @@
   Food.prototype.setPosition = function(x,y){
     this.x = x;
     this.y = y;
+    Logger.log("New food cell spawned in at " + this.x + ", " + this.y);
   };
   Food.prototype.draw = function(ctx){
     ctx.beginPath();
