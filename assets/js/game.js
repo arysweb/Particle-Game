@@ -311,6 +311,7 @@
       // Draw other players (world space)
       for(var oid in otherPlayers){ if(Object.prototype.hasOwnProperty.call(otherPlayers, oid)){
         otherPlayers[oid].draw(ctx);
+        otherPlayers[oid].drawLabelsWorld(ctx);
       }}
       for(var vi=0; vi<viruses.length; vi++){
         viruses[vi].v.update(dt);
@@ -319,6 +320,8 @@
 
       // Draw player in world space so its visual radius matches collisions and zoom
       player.draw(ctx);
+      // Draw player's own labels above their cell for consistency
+      player.drawLabelsWorld(ctx);
 
       // Handle food collisions (eat and replace)
       for(var i=foods.length-1;i>=0;i--){

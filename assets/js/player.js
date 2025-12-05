@@ -44,6 +44,27 @@
     this.y = y;
     Logger.log("New player spawned in at " + this.x + ", " + this.y);
   };
+  Player.prototype.drawLabelsWorld = function(ctx){
+    var name = this.name || 'Unnamed Cell';
+    var countText = String(this.foodEaten || 0);
+    var base = (this.baseRadius || 32);
+    var scale = Math.max(0.6, Math.min(2.2, this.radius / base));
+    var fontSize = Math.round(14 * scale);
+    var outline = Math.max(2, Math.min(6, 3 * scale));
+    var gap = Math.round(12 * scale * 0.85);
+    ctx.font = 'bold ' + fontSize + 'px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = outline;
+    var nameY = this.y - this.radius - Math.round(gap * 0.4);
+    ctx.strokeText(name, this.x, nameY);
+    ctx.fillText(name, this.x, nameY);
+    var countY = nameY + Math.round(gap * 1.2);
+    ctx.strokeText(countText, this.x, countY);
+    ctx.fillText(countText, this.x, countY);
+  };
   Player.prototype._recomputeSpeed = function(){
     var exp = GAME_CONFIG.PLAYER.SPEED_EXP;
     var scale = Math.pow(this.baseRadius / this.targetRadius, exp);
