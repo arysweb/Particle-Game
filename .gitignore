@@ -1,0 +1,4 @@
+# Ignore runtime logs and server-side logger script
+game.log
+logger.php
+assets/js/logger.js

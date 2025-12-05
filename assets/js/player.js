@@ -72,16 +72,17 @@
     this.speed = GAME_CONFIG.PLAYER.BASE_SPEED * scale;
   };
   Player.prototype.setTargetRadius = function(r){
-    if(r > 0){
-      this.targetRadius = r;
-      this._recomputeSpeed();
-    }
+    if(!(typeof r === 'number' && isFinite(r))) return;
+    if(r <= 1) r = 1;
+    this.targetRadius = r;
+    this._recomputeSpeed();
   };
   Player.prototype.increaseRadiusStep = function(dr){
-    if(dr && dr > 0){
-      this.targetRadius += dr;
-      this._recomputeSpeed();
-    }
+    if(!(typeof dr === 'number' && isFinite(dr))) return;
+    if(dr <= 0) return;
+    this.targetRadius += dr;
+    if(this.targetRadius < 1) this.targetRadius = 1;
+    this._recomputeSpeed();
   };
   Player.prototype.update = function(dt, target){
     var dx = target.x - this.x;
@@ -100,17 +101,21 @@
     }
     var rate = GAME_CONFIG.PLAYER.RADIUS_TWEEN_RATE;
     this.radius += (this.targetRadius - this.radius) * rate * dt;
+    if(!(typeof this.radius === 'number' && isFinite(this.radius))) this.radius = 1;
+    if(this.radius < 1) this.radius = 1;
   };
   Player.prototype.draw = function(ctx){
     // Fill body
+    var safeR = (typeof this.radius === 'number' && isFinite(this.radius)) ? this.radius : 1;
+    if(safeR < 1) safeR = 1;
     ctx.fillStyle = this.color;
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+    ctx.arc(this.x, this.y, safeR, 0, Math.PI*2);
     ctx.fill();
 
     // Inner border: darker shade of body color, scales with radius and stays inside
-    var lw = Math.max(2, Math.min(10, this.radius * 0.12));
-    var strokeRadius = Math.max(1, this.radius - lw/2);
+    var lw = Math.max(2, Math.min(10, safeR * 0.12));
+    var strokeRadius = Math.max(1, safeR - lw/2);
     ctx.lineWidth = lw;
     ctx.strokeStyle = darkenHex(this.color, 0.78);
     ctx.beginPath();
