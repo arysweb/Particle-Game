@@ -24,6 +24,74 @@
     player.setPosition(spawnX, spawnY);
     Logger.log("Game initialized with world_size=" + worldSize);
 
+    // --- Food management (local + RTDB) ---
+    var foods = [];
+    function createFoodAt(x, y){
+      var f = new Food();
+      f.setPosition(x, y);
+      return f;
+    }
+    function randomFoodPosAwayFromPlayer(){
+      var minDist = GAME_CONFIG.FOOD.MIN_DISTANCE_FROM_PLAYER;
+      var tries = 0;
+      var x, y;
+      do{
+        x = GAME_CONFIG.FOOD.RADIUS + Math.random() * (worldSize - 2*GAME_CONFIG.FOOD.RADIUS);
+        y = GAME_CONFIG.FOOD.RADIUS + Math.random() * (worldSize - 2*GAME_CONFIG.FOOD.RADIUS);
+        tries++;
+      } while (Math.hypot(x - player.x, y - player.y) < minDist && tries < 20);
+      return {x:x, y:y};
+    }
+    function addFoodLocal(id, x, y){
+      var f = createFoodAt(x, y);
+      foods.push({ id: id, f: f });
+    }
+    function drawFoods(ctx){
+      for(var i=0;i<foods.length;i++){
+        foods[i].f.draw(ctx);
+      }
+    }
+    function initFoodsFromDB(){
+      if(!(window.firebaseDb && window.firebaseRef && window.firebaseGet)){
+        throw new Error('Realtime Database is required for foods; no local fallback');
+      }
+      var rootRef = window.firebaseRef(window.firebaseDb);
+      window.firebaseGet(window.firebaseChild(rootRef, 'foods')).then(function(snap){
+        var val = snap.val();
+        if(!val){
+          // Initialize foods once
+          var updates = {};
+          for(var i=0;i<GAME_CONFIG.FOOD.INITIAL_COUNT;i++){
+            var id = 'f_' + Math.random().toString(36).slice(2) + Date.now().toString(36) + '_' + i;
+            var p = randomFoodPosAwayFromPlayer();
+            updates[id] = { x: Math.round(p.x), y: Math.round(p.y) };
+            addFoodLocal(id, p.x, p.y);
+          }
+          window.firebaseUpdate(window.firebaseRef(window.firebaseDb, 'foods'), updates);
+        } else {
+          // Hydrate local from DB
+          for(var id in val){ if(Object.prototype.hasOwnProperty.call(val,id)){
+            addFoodLocal(id, val[id].x, val[id].y);
+          }}
+        }
+      });
+    }
+    function replaceFood(index){
+      var old = foods[index];
+      // Remove from DB if present
+      if(window.firebaseDb && window.firebaseRef && window.firebaseRemove){
+        try{ window.firebaseRemove(window.firebaseRef(window.firebaseDb, 'foods/' + old.id)); }catch(e){}
+      }
+      // Spawn a new one away from player
+      var nid = 'f_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      var p = randomFoodPosAwayFromPlayer();
+      foods[index] = { id: nid, f: createFoodAt(p.x, p.y) };
+      if(window.firebaseDb && window.firebaseRef && window.firebaseSet){
+        try{ window.firebaseSet(window.firebaseRef(window.firebaseDb, 'foods/' + nid), { x: Math.round(p.x), y: Math.round(p.y) }); }catch(e){}
+      }
+    }
+    initFoodsFromDB();
+
     // Persist player to Realtime Database
     (function(){
       if(window.firebaseDb && window.firebaseRef && window.firebaseSet){
@@ -126,7 +194,21 @@
       // Move the world relative to player (player stays centered)
       ctx.translate(-camX, -camY);
 
-      // TODO: draw world entities here (food, viruses, etc.) at world positions
+      // Draw world entities
+      drawFoods(ctx);
+
+      // Handle food collisions (eat and replace)
+      for(var i=foods.length-1;i>=0;i--){
+        var fx = foods[i].f.x;
+        var fy = foods[i].f.y;
+        var dx = fx - player.x;
+        var dy = fy - player.y;
+        var dist = Math.hypot(dx, dy);
+        if(dist <= (player.radius + GAME_CONFIG.FOOD.RADIUS)){
+          player.foodEaten += 1;
+          replaceFood(i);
+        }
+      }
 
       // Draw player stationary at screen center in screen space
       ctx.setTransform(1,0,0,1,0,0);

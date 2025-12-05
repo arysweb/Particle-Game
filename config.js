@@ -15,12 +15,13 @@ window.GAME_CONFIG = {
   },
   FOOD: {
     RADIUS: 16,
-    INITIAL_COUNT: 20,
+    INITIAL_COUNT: 500,
+    MIN_DISTANCE_FROM_PLAYER: 50,
     COLORS: ['#ff0000', '#00ff00', '#0000ff']
   },
   VIRUS: {
     RADIUS: 70,
-    INITIAL_COUNT: 5,
+    INITIAL_COUNT: 20,
     IMAGE: 'assets/img/virus.svg',
     ROTATION_SPEED: 0.2
   }
