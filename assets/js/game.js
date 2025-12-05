@@ -359,12 +359,8 @@
         }
       }
 
-      // Reset transform for any HUD overlays (text/UI) if needed
+      // Reset transform if you add screen-space UI later
       ctx.setTransform(1,0,0,1,0,0);
-      // Draw player HUD labels (name and food count) at screen center
-      if(player && typeof player.drawLabelsCentered === 'function'){
-        player.drawLabelsCentered(ctx, canvas.width/2, canvas.height/2);
-      }
 
       requestAnimationFrame(loop);
     }

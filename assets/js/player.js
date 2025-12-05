@@ -58,10 +58,11 @@
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = 'rgba(0,0,0,0.6)';
     ctx.lineWidth = outline;
-    var nameY = this.y - this.radius - Math.round(gap * 0.4);
+    // Draw inside the cell (centered), slight vertical separation
+    var nameY = this.y - Math.round(gap * 0.5);
     ctx.strokeText(name, this.x, nameY);
     ctx.fillText(name, this.x, nameY);
-    var countY = nameY + Math.round(gap * 1.2);
+    var countY = this.y + Math.round(gap * 0.8);
     ctx.strokeText(countText, this.x, countY);
     ctx.fillText(countText, this.x, countY);
   };
