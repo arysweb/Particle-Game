@@ -5,6 +5,26 @@
       : ['#ff0000','#00ff00','#0000ff'];
     return palette[Math.floor(Math.random()*palette.length)];
   }
+  function darkenHex(hex, factor){
+    try{
+      if(typeof hex !== 'string') return hex;
+      var h = hex.trim();
+      if(h[0] === '#') h = h.slice(1);
+      if(h.length === 3){
+        h = h.split('').map(function(c){ return c + c; }).join('');
+      }
+      if(h.length !== 6) return '#' + h;
+      var r = parseInt(h.slice(0,2),16);
+      var g = parseInt(h.slice(2,4),16);
+      var b = parseInt(h.slice(4,6),16);
+      var f = (typeof factor === 'number') ? factor : 0.8;
+      r = Math.max(0, Math.min(255, Math.round(r * f)));
+      g = Math.max(0, Math.min(255, Math.round(g * f)));
+      b = Math.max(0, Math.min(255, Math.round(b * f)));
+      var toHex = function(v){ var s = v.toString(16); return s.length===1 ? '0'+s : s; };
+      return '#' + toHex(r) + toHex(g) + toHex(b);
+    }catch(e){ return hex; }
+  }
   function Player(){
     if(!window.GAME_CONFIG || !GAME_CONFIG.PLAYER) throw new Error("Missing GAME_CONFIG.PLAYER");
     this.radius = GAME_CONFIG.PLAYER.RADIUS;
@@ -60,10 +80,20 @@
     this.radius += (this.targetRadius - this.radius) * rate * dt;
   };
   Player.prototype.draw = function(ctx){
+    // Fill body
     ctx.fillStyle = this.color;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
     ctx.fill();
+
+    // Inner border: darker shade of body color, scales with radius and stays inside
+    var lw = Math.max(2, Math.min(10, this.radius * 0.12));
+    var strokeRadius = Math.max(1, this.radius - lw/2);
+    ctx.lineWidth = lw;
+    ctx.strokeStyle = darkenHex(this.color, 0.78);
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, strokeRadius, 0, Math.PI*2);
+    ctx.stroke();
   };
   Player.prototype.drawCentered = function(ctx, cx, cy){
     ctx.fillStyle = this.color;
@@ -89,16 +119,21 @@
   Player.prototype.drawLabelsCentered = function(ctx, cx, cy){
     var name = this.name || 'Unnamed Cell';
     var countText = String(this.foodEaten || 0);
-    ctx.font = 'bold 14px Arial, sans-serif';
+    var base = (this.baseRadius || 32);
+    var scale = Math.max(0.6, Math.min(2.2, this.radius / base));
+    var fontSize = Math.round(14 * scale);
+    var outline = Math.max(2, Math.min(6, 3 * scale));
+    var gap = Math.round(12 * scale * 0.85);
+    ctx.font = 'bold ' + fontSize + 'px Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-    ctx.lineWidth = 3;
-    var nameY = cy - 6;
+    ctx.lineWidth = outline;
+    var nameY = cy - Math.round(gap * 0.5);
     ctx.strokeText(name, cx, nameY);
     ctx.fillText(name, cx, nameY);
-    var countY = cy + 12;
+    var countY = cy + Math.round(gap * 0.9);
     ctx.strokeText(countText, cx, countY);
     ctx.fillText(countText, cx, countY);
   };
