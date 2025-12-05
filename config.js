@@ -6,5 +6,16 @@ const GAME_CONFIG = {
   PLAYER: {
     RADIUS: 32,
     BASE_SPEED: 250,
+    COLOR: '#3aa7ff',
+  },
+  FOOD: {
+    RADIUS: 16,
+    COLOR: '#66cc66',
+    INITIAL_COUNT: 20
+  },
+  VIRUS: {
+    RADIUS: 70,
+    COLOR: '#66cc99',
+    INITIAL_COUNT: 5
   }
 };
