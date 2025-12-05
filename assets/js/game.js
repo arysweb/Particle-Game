@@ -151,6 +151,8 @@
       if(window.firebaseDb && window.firebaseRef && window.firebaseSet){
         var playerId = 'p_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
         window.currentPlayerId = playerId;
+        var createdAt = Date.now();
+        window.currentPlayerCreatedAt = createdAt;
         var data = {
           name: player.name,
           x: player.x,
@@ -158,7 +160,7 @@
           color: player.color,
           radius: player.radius,
           foodEaten: player.foodEaten,
-          createdAt: Date.now()
+          createdAt: createdAt
         };
         var playerRef = window.firebaseRef(window.firebaseDb, 'players/' + playerId);
         window.currentPlayerRef = playerRef;
@@ -268,7 +270,7 @@
       var camX = player.x - (canvas.width/2) / (zoom || 1);
       var camY = player.y - (canvas.height/2) / (zoom || 1);
 
-      // Periodically sync to Realtime Database (minimal fields)
+      // Periodically sync to Realtime Database (full fields to avoid missing columns)
       if(syncAccum >= 0.2 && window.currentPlayerId && window.firebaseDb){
         syncAccum = 0;
         try{
@@ -277,8 +279,11 @@
             name: player.name,
             x: player.x,
             y: player.y,
+            color: player.color,
             foodEaten: player.foodEaten,
-            radius: player.radius
+            radius: player.radius,
+            // keep createdAt stable if present; sending same value is harmless
+            createdAt: (typeof window.currentPlayerCreatedAt === 'number' ? window.currentPlayerCreatedAt : undefined)
           });
         }catch(e){}
       }
