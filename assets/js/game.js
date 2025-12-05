@@ -160,13 +160,14 @@
           color: player.color,
           radius: player.radius,
           foodEaten: player.foodEaten,
-          createdAt: createdAt
+          createdAt: createdAt,
+          updatedAt: Date.now()
         };
         var playerRef = window.firebaseRef(window.firebaseDb, 'players/' + playerId);
         window.currentPlayerRef = playerRef;
         window.firebaseSet(playerRef, data).catch(function(){});
         // Intentionally not using onDisconnect().remove() to avoid multi-tab removal issues.
-        // Start background sync (10 Hz) so others see me even when this tab is throttled
+        // Start background sync (20 Hz) so others see me even when this tab is throttled
         try{
           if(!window.__playerSyncTimer){
             window.__playerSyncTimer = setInterval(function(){
@@ -180,10 +181,11 @@
                   color: player.color,
                   foodEaten: player.foodEaten,
                   radius: player.radius,
-                  createdAt: (typeof window.currentPlayerCreatedAt === 'number' ? window.currentPlayerCreatedAt : undefined)
+                  createdAt: (typeof window.currentPlayerCreatedAt === 'number' ? window.currentPlayerCreatedAt : undefined),
+                  updatedAt: Date.now()
                 });
               }catch(e){}
-            }, 100);
+            }, 50);
           }
         }catch(e){}
 
@@ -208,23 +210,21 @@
         op = new Player();
         otherPlayers[id] = op;
       }
-      // Set immediate position on first receive; afterwards, update targets for smoothing
-      if(typeof data.x === 'number'){
-        if(typeof op.x !== 'number') op.x = data.x;
-        op._tx = data.x;
-      }
-      if(typeof data.y === 'number'){
-        if(typeof op.y !== 'number') op.y = data.y;
-        op._ty = data.y;
-      }
-      if(typeof data.radius === 'number'){
-        if(typeof op.radius !== 'number') op.radius = data.radius;
-        op._tr = data.radius;
-        op.targetRadius = data.radius;
-      }
       if(typeof data.color === 'string') op.color = data.color;
       if(typeof data.name === 'string') op.name = data.name;
       if(typeof data.foodEaten === 'number') op.foodEaten = data.foodEaten;
+      // Snapshot history for interpolation
+      if(!op._hist) op._hist = [];
+      if(typeof data.x === 'number' && typeof data.y === 'number'){
+        var t = (typeof data.updatedAt === 'number') ? data.updatedAt : Date.now();
+        var r = (typeof data.radius === 'number') ? data.radius : (op._hist.length ? op._hist[op._hist.length-1].r : (typeof op.radius === 'number' ? op.radius : GAME_CONFIG.PLAYER.RADIUS));
+        op._hist.push({ t: t, x: data.x, y: data.y, r: r });
+        if(op._hist.length > 60) op._hist.shift();
+        // Initialize pose on first packet
+        if(typeof op.x !== 'number') op.x = data.x;
+        if(typeof op.y !== 'number') op.y = data.y;
+        if(typeof op.radius !== 'number') op.radius = r;
+      }
     }
     function removeOtherPlayer(id){
       if(otherPlayers[id]) delete otherPlayers[id];
@@ -294,7 +294,7 @@
       var camY = player.y - (canvas.height/2) / (zoom || 1);
 
       // Periodically sync via rAF only when tab is visible; background sync interval handles hidden tabs
-      if(document.visibilityState === 'visible' && syncAccum >= 0.1 && window.currentPlayerId && window.firebaseDb){
+      if(document.visibilityState === 'visible' && syncAccum >= 0.05 && window.currentPlayerId && window.firebaseDb){
         syncAccum = 0;
         try{
           var path = 'players/' + window.currentPlayerId;
@@ -306,7 +306,8 @@
             foodEaten: player.foodEaten,
             radius: player.radius,
             // keep createdAt stable if present; sending same value is harmless
-            createdAt: (typeof window.currentPlayerCreatedAt === 'number' ? window.currentPlayerCreatedAt : undefined)
+            createdAt: (typeof window.currentPlayerCreatedAt === 'number' ? window.currentPlayerCreatedAt : undefined),
+            updatedAt: Date.now()
           });
         }catch(e){}
       }
@@ -343,16 +344,29 @@
         ctx.restore();
       }
 
-      // Smooth remote players toward targets (snap if far to avoid rubber-banding)
+      // Smooth remote players using buffered snapshot interpolation (~120ms buffer)
+      var renderTime = Date.now() - 120;
       for(var sid in otherPlayers){ if(Object.prototype.hasOwnProperty.call(otherPlayers, sid)){
         var rp = otherPlayers[sid];
-        var lerp = Math.min(1, (14 * dt));
-        if(typeof rp._tx === 'number'){
-          var dx = rp._tx - rp.x; var dy = rp._ty - rp.y; var dist = Math.hypot(dx, dy);
-          if(dist > 180){ rp.x = rp._tx; rp.y = rp._ty; }
-          else { rp.x += dx * lerp; rp.y += dy * lerp; }
+        if(rp && rp._hist && rp._hist.length){
+          // Find bracketing snapshots
+          var hist = rp._hist;
+          var a = hist[0], b = hist[hist.length-1];
+          for(var i=0;i<hist.length;i++){
+            if(hist[i].t <= renderTime) a = hist[i];
+            if(hist[i].t >= renderTime){ b = hist[i]; break; }
+          }
+          var t0 = a.t, t1 = b.t;
+          var x0 = a.x, y0 = a.y, r0 = a.r;
+          var x1 = b.x, y1 = b.y, r1 = b.r;
+          var u = (t1 !== t0) ? ((renderTime - t0) / (t1 - t0)) : 1;
+          if(u < 0) u = 0; if(u > 1) u = 1;
+          rp.x = x0 + (x1 - x0) * u;
+          rp.y = y0 + (y1 - y0) * u;
+          rp.radius += (r1 - rp.radius) * Math.min(1, 12 * dt);
+          // Trim very old snapshots
+          while(hist.length && hist[0].t < (Date.now() - 1000)) hist.shift();
         }
-        if(typeof rp._tr === 'number') rp.radius += (rp._tr - rp.radius) * lerp;
       }}
 
       // Draw world entities: foods (bottom), viruses (middle)
