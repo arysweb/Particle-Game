@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-import { getDatabase, ref, set, update, onDisconnect, remove, get, child } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+import { getDatabase, ref, set, update, onDisconnect, remove, get, child, onChildAdded, onChildRemoved } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAzNX_u-lRxcFXk5Y6LRWCVsn8iCl2iukk",
@@ -24,3 +24,5 @@ window.firebaseOnDisconnect = onDisconnect;
 window.firebaseRemove = remove;
 window.firebaseGet = get;
 window.firebaseChild = child;
+window.firebaseOnChildAdded = onChildAdded;
+window.firebaseOnChildRemoved = onChildRemoved;

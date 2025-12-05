@@ -44,5 +44,26 @@
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
     ctx.fill();
   };
+  Player.prototype.drawCentered = function(ctx, cx, cy){
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, this.radius, 0, Math.PI*2);
+    ctx.fill();
+
+    var name = this.name || 'Unnamed Cell';
+    var countText = String(this.foodEaten || 0);
+    ctx.font = 'bold 14px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth = 3;
+    var nameY = cy - 6;
+    ctx.strokeText(name, cx, nameY);
+    ctx.fillText(name, cx, nameY);
+    var countY = cy + 12;
+    ctx.strokeText(countText, cx, countY);
+    ctx.fillText(countText, cx, countY);
+  };
   window.Player = Player;
 })();

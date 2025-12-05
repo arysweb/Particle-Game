@@ -23,6 +23,6 @@ window.GAME_CONFIG = {
     RADIUS: 70,
     INITIAL_COUNT: 20,
     IMAGE: 'assets/img/virus.svg',
-    ROTATION_SPEED: 0.2
+    ROTATION_SPEED: 0.5
   }
 };

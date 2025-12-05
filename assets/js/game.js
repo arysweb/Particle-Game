@@ -92,6 +92,60 @@
     }
     initFoodsFromDB();
 
+    // --- Virus management (local + RTDB) ---
+    var viruses = [];
+    function createVirusAt(x, y){
+      var v = new Virus();
+      v.setPosition(x, y);
+      return v;
+    }
+    function randomVirusPos(){
+      var x = GAME_CONFIG.VIRUS.RADIUS + Math.random() * (worldSize - 2*GAME_CONFIG.VIRUS.RADIUS);
+      var y = GAME_CONFIG.VIRUS.RADIUS + Math.random() * (worldSize - 2*GAME_CONFIG.VIRUS.RADIUS);
+      return {x:x, y:y};
+    }
+    function addVirusLocal(id, x, y){
+      var v = createVirusAt(x, y);
+      viruses.push({ id: id, v: v });
+    }
+    function removeVirusLocal(id){
+      for(var i=0;i<viruses.length;i++){
+        if(viruses[i].id === id){ viruses.splice(i,1); break; }
+      }
+    }
+    function initVirusesFromDB(){
+      if(!(window.firebaseDb && window.firebaseRef && window.firebaseGet)){
+        throw new Error('Realtime Database is required for viruses; no local fallback');
+      }
+      var virusesRef = window.firebaseRef(window.firebaseDb, 'viruses');
+      // Attach listeners first; onChildAdded fires for existing children too
+      window.firebaseOnChildAdded(virusesRef, function(snap){
+        var data = snap.val();
+        if(data && typeof data.x === 'number' && typeof data.y === 'number'){
+          addVirusLocal(snap.key, data.x, data.y);
+        }
+      });
+      window.firebaseOnChildRemoved(virusesRef, function(snap){
+        removeVirusLocal(snap.key);
+      });
+      // If empty, initialize once
+      window.firebaseGet(virusesRef).then(function(snap){
+        var val = snap.val();
+        if(!val){
+          var updates = {};
+          for(var i=0;i<GAME_CONFIG.VIRUS.INITIAL_COUNT;i++){
+            var id = 'v_' + Math.random().toString(36).slice(2) + Date.now().toString(36) + '_' + i;
+            var p = randomVirusPos();
+            updates[id] = { x: Math.round(p.x), y: Math.round(p.y) };
+          }
+          if(Object.keys(updates).length){
+            window.firebaseUpdate(virusesRef, updates);
+          }
+        }
+      });
+    }
+    initVirusesFromDB();
+
     // Persist player to Realtime Database
     (function(){
       if(window.firebaseDb && window.firebaseRef && window.firebaseSet){
@@ -194,8 +248,12 @@
       // Move the world relative to player (player stays centered)
       ctx.translate(-camX, -camY);
 
-      // Draw world entities
+      // Draw world entities: foods (bottom), viruses (middle)
       drawFoods(ctx);
+      for(var vi=0; vi<viruses.length; vi++){
+        viruses[vi].v.update(dt);
+        viruses[vi].v.draw(ctx);
+      }
 
       // Handle food collisions (eat and replace)
       for(var i=foods.length-1;i>=0;i--){
@@ -210,31 +268,9 @@
         }
       }
 
-      // Draw player stationary at screen center in screen space
+      // Draw player stationary at screen center in screen space via player module
       ctx.setTransform(1,0,0,1,0,0);
-      ctx.fillStyle = player.color;
-      ctx.beginPath();
-      ctx.arc(canvas.width/2, canvas.height/2, player.radius, 0, Math.PI*2);
-      ctx.fill();
-
-      // Draw player name and food eaten count centered
-      var cx = canvas.width/2;
-      var cy = canvas.height/2;
-      ctx.font = 'bold 14px Arial, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-      ctx.lineWidth = 3;
-      // name line
-      var nameY = cy - 6;
-      ctx.strokeText(player.name, cx, nameY);
-      ctx.fillText(player.name, cx, nameY);
-      // food eaten line
-      var countText = String(player.foodEaten || 0);
-      var countY = cy + 12;
-      ctx.strokeText(countText, cx, countY);
-      ctx.fillText(countText, cx, countY);
+      player.drawCentered(ctx, canvas.width/2, canvas.height/2);
 
       requestAnimationFrame(loop);
     }
